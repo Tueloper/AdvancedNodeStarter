@@ -4,13 +4,31 @@ const cookieSession = require('cookie-session');
 const passport = require('passport');
 const bodyParser = require('body-parser');
 const keys = require('./config/keys');
+const chalk = require('chalk')
 
 require('./models/User');
 require('./models/Blog');
 require('./services/passport');
+require('./services/cache')
+
+// database connection
+mongoose.connect(keys.mongoURI, {
+  useNewUrlParser: true,
+  useCreateIndex: true,
+  useFindAndModify: false
+}, function (err, client) {
+  if (err) console.log(err);
+  console.log(chalk.red('Connection passed'));
+})
+
+let db = mongoose.connection;
+
+db.once('open', () => console.log(chalk.green('Connected to database')));
+
+// checks if connection to db is a success
+db.on('error', console.error.bind(console, 'Database connection error:'));
 
 mongoose.Promise = global.Promise;
-mongoose.connect(keys.mongoURI, { useMongoClient: true });
 
 const app = express();
 
@@ -27,7 +45,7 @@ app.use(passport.session());
 require('./routes/authRoutes')(app);
 require('./routes/blogRoutes')(app);
 
-if (['production'].includes(process.env.NODE_ENV)) {
+if (['production', 'ci'].includes(process.env.NODE_ENV)) {
   app.use(express.static('client/build'));
 
   const path = require('path');
